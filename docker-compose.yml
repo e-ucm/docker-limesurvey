@@ -1,0 +1,131 @@
+version: '3.7'
+
+volumes:
+  mariadb:
+    driver: local
+
+networks:
+  system_traefik:
+    external: true
+
+services:
+
+  mail:
+    image: maildev/maildev:1.1.0
+    hostname: mail.limesurvey.internal.test
+    networks:
+      default:
+        aliases:
+          - mail.limesurvey.internal.test
+      system_traefik:
+        aliases:
+          - mail.limesurvey.internal.test
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.ls-mail.loadbalancer.server.port=80"
+      - "traefik.http.routers.ls-mail.rule=Host(`mail-ls.external.test`)"
+      - "traefik.http.routers.ls-mail.entrypoints=websecure"
+      - "traefik.http.routers.ls-mail.tls=true"      
+
+  limesurvey:
+    image: limesurvey:4.2.3
+#    build:
+#      context: ./limesurvey-dev
+#    command: /bin/bash
+#    entrypoint: /bin/bash
+#    stdin_open: true
+#    tty: true
+    environment:
+      LIMESURVEY_DB_HOST: mariadb.limesurvey.internal.test
+      LIMESURVEY_DB_USER: limesurvey
+      LIMESURVEY_DB_PASSWORD: password
+      LIMESURVEY_ADMIN_USER: admin
+      LIMESURVEY_ADMIN_PASSWORD: password2
+      LIMESURVEY_ADMIN_NAME: Lime Administrator
+      LIMESURVEY_ADMIN_EMAIL: lime-dev@limesurvey.external.test
+      LIMESURVEY_SAML_PLUGIN_AUTH_SOURCE: "https___sso_external_test_auth_realms_simva"
+      LIMESURVEY_SAML_PLUGIN_UID_MAPPING: "username"
+      DEBUG: "true"
+      SIMPLESAMLPHP_PATH: "/simplesamlphp"
+      SIMPLESAMLPHP_SESSION_COOKIE_PATH: "/"
+      SIMPLESAMLPHP_ADMIN_PASSWORD: "admin"
+      SIMPLESAMLPHP_ENABLE_DEFAULT_VHOST: "true"
+      SIMPLESAMLPHP_INTERNAL_PROXY_HOSTNAME: "traefik.internal.test"
+      SIMPLESAMLPHP_ADMIN_PROTECT_INDEX_PAGE: "true"
+      MSMTP_HOST: "mail.simplesamlphp.dev.test"
+      MSMTP_FROM: "no-reply@limesurvey.external.test"
+      SIMPLESAMLPHP_LOG_LEVEL: "DEBUG"
+      SIMPLESAMLPHP_SP_CERT_SUBJ: "/C=ES/ST=Madrid/L=Madrid/O=Universidad Complutense de Madrid/OU=e-UCM SIMVA/CN=simplesamlphp.internal.test"
+      SIMPLESAMLPHP_SP_IDP_METADATA_URL: "https://sso.external.test/auth/realms/simva/protocol/saml/descriptor"
+      SIMPLESAMLPHP_SIGN_AUTHN_REQUESTS: "true"
+      SIMPLESAMLPHP_SIGN_LOGOUT_REQUESTS: "true"
+    volumes:
+      - ./simplesamlphp-data/config:/etc/simplesamlphp
+      - ./limesurvey-data/etc:/etc/limesurvey
+      - ./limesurvey-data/plugins:/var/www/html/plugins
+      - ./limesurvey-data/upload:/var/www/html/upload
+      - ./limesurvey-data/tmp:/var/www/html/tmp
+    depends_on:
+      - mariadb
+    hostname: limesurvey.internal.test
+    networks:
+      default:
+        aliases:
+          - limesurvey.internal.test
+      system_traefik:
+        aliases:
+          - limesurvey.internal.test    
+    dns:
+      - 172.31.0.53
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.ls.loadbalancer.server.port=80"
+      - "traefik.http.routers.ls.rule=Host(`limesurvey.external.test`)"
+      - "traefik.http.routers.ls.entrypoints=websecure"
+      - "traefik.http.routers.ls.tls=true"      
+
+  mariadb:
+    image: mariadb:10.4
+    volumes:
+      - mariadb:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=limesurvey
+      - MYSQL_USER=limesurvey
+      - MYSQL_PASSWORD=password
+# https://github.com/docker-library/mariadb/issues/261
+# https://github.com/docker-library/mariadb/issues/262      
+      - MYSQL_INITDB_SKIP_TZINFO=true
+    hostname: mariadb.limesurvey.internal.test
+    dns:
+    - 172.31.0.53
+    networks:
+      default:
+        aliases:
+          - mariadb.limesurvey.internal.test
+      system_traefik:
+        aliases:
+          - mariadb.limesurvey.internal.test 
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:4.9.4
+    environment:
+      PMA_HOST: "mariadb.limesurvey.internal.test"
+    depends_on:
+      - mariadb
+    hostname: phpmyadmin.internal.test
+    dns:
+      - 172.31.0.53
+    networks:
+      default:
+        aliases:
+          - phpmyadmin.limesurvey.internal.test
+      system_traefik:
+        aliases:
+          - phpmyadmin.limesurvey.internal.test
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.ls-phpmyadmin.loadbalancer.server.port=80"
+      - "traefik.http.routers.ls-phpmyadmin.rule=Host(`phpmyadmin-ls.external.test`)"
+      - "traefik.http.routers.ls-phpmyadmin.entrypoints=websecure"
+      - "traefik.http.routers.ls-phpmyadmin.tls=true"  
