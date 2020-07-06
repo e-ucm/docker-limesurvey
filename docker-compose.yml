@@ -28,7 +28,7 @@ services:
       - "traefik.http.routers.ls-mail.tls=true"      
 
   limesurvey:
-    image: eucm/limesurvey:4.3.2
+    image: eucm/limesurvey:4.3.2-1
 #    build:
 #      context: ./limesurvey-dev
 #    command: /bin/bash
