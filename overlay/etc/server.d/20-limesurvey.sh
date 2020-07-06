@@ -142,12 +142,86 @@ EOPHP
     if [[ "$DBSTATUS" != "DBEXISTS" ]] &&  [[ -n "$LIMESURVEY_ADMIN_USER" ]] && [[ -n "$LIMESURVEY_ADMIN_PASSWORD" ]]; then
         echo >&2 'Database not yet populated - installing Limesurvey database'
         php application/commands/console.php install "$LIMESURVEY_ADMIN_USER" "$LIMESURVEY_ADMIN_PASSWORD" "$LIMESURVEY_ADMIN_NAME" "$LIMESURVEY_ADMIN_EMAIL" verbose
+        echo >&2 'Configure default global settings'
+        limesurvey_global_configuration
     fi
 
     if [[ -n "$LIMESURVEY_ADMIN_USER" ]] && [[ -n "$LIMESURVEY_ADMIN_PASSWORD" ]]; then
         echo >&2 'Updating password for admin user'
         php application/commands/console.php resetpassword "$LIMESURVEY_ADMIN_USER" "$LIMESURVEY_ADMIN_PASSWORD"
     fi
+
+}
+
+function limesurvey_global_configuration()
+{
+
+    DBSTATUS=$(TERM=dumb php -- "$LIMESURVEY_DB_HOST" "$LIMESURVEY_DB_USER" "$LIMESURVEY_DB_PASSWORD" "$LIMESURVEY_DB_NAME" "$LIMESURVEY_TABLE_PREFIX" "$MYSQL_SSL_CA" <<'EOPHP'
+<?php
+    error_reporting(E_ERROR | E_PARSE);
+
+    $stderr = fopen('php://stderr', 'w');
+
+    list($host, $socket) = explode(':', $argv[1], 2);
+    $port = 0;
+    if (is_numeric($socket)) {
+        $port = (int) $socket;
+        $socket = null;
+    }
+
+    $maxTries = 10;
+    do {
+        $con = mysqli_init();
+        if (isset($argv[6]) && !empty($argv[6])) {
+            mysqli_ssl_set($con,NULL,NULL,"/var/www/html/" . $argv[6],NULL,NULL);
+        }
+        $mysql = mysqli_real_connect($con,$host, $argv[2], $argv[3], '', $port, $socket, MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT);
+            if (!$mysql) {
+                fwrite($stderr, "\n" . 'MySQL Connection Error: (' . $mysql->connect_errno . ') ' . $mysql->connect_error . "\n");
+                --$maxTries;
+                if ($maxTries <= 0) {
+                        exit(1);
+                }
+                sleep(3);
+            }
+    } while (!$mysql);
+
+    $con->select_db($con->real_escape_string($argv[4]));
+
+    $settings = array(
+        'rpc_publish_api' => '1',
+        'RPCInterface' => 'json',
+        'force_ssl' => 'on'
+    );
+
+    $query = "INSERT INTO `".$argv[5]."settings_global` (`stg_value`, `stg_name`) VALUES (?, ?) ";
+
+    $stmt = $con->prepare($query);
+
+    if (!$stmt->bind_param("ss", $setting_name, $setting_value)) {
+        fwrite($stderr, "\n" . 'MySQL "Global configuration" error: ' . $con->error . "\n");
+        $con->close();
+        exit(1);
+    }
+
+    $con->query("START TRANSACTION");
+    foreach ($settings as $setting_name => $setting_value) {
+        if (!$stmt->execute()) {
+            fwrite($stderr, "\n" . 'MySQL "Global configuration" error: ' . $con->error . "\n");
+            $con->close();
+            exit(1);
+        }
+    }
+    $stmt->close();
+    $con->query("COMMIT");
+
+    $con->close();
+
+    fwrite($stderr, "\nMySQL "Global settings configured" updated.\n");
+
+    exit(0);
+EOPHP
+)
 
 }
 
