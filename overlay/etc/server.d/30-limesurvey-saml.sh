@@ -35,9 +35,9 @@ function limesurvey_saml_setup()
 
     $con->select_db($con->real_escape_string($argv[4]));
 
-    $res = $con->query("SELECT 1 FROM `".$con->real_escape_string($argv[5])."plugins` WHERE `name` = '.$con->real_escape_string($argv[7]).'");
+    $res = $con->query("SELECT 1 FROM `".$con->real_escape_string($argv[5])."plugins` WHERE `name` = '".$con->real_escape_string($argv[7])."'");
 
-    if ($res !== false) {
+    if ($res !== false && $res->num_rows > 0) {
         fwrite($stderr, "\n" . 'MySQL "AuthSAML plugin" already installed'. "\n");
         $res->free();
         $con->close();
@@ -101,6 +101,7 @@ function limesurvey_saml_setup()
 
     $con->close();
 
+    fwrite($stderr, "\n" . 'MySQL "AuthSAML plugin" installed'. "\n");
 
     exit(0);
 EOPHP
