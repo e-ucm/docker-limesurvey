@@ -6,7 +6,7 @@ function limesurvey_setup()
     if [[ ! -e "/etc/limesurvey/config.php" ]]; then
         echo >&2 "No config file in /etc/limesurvey Copying default config file..."
         #Copy default config file but also allow for the addition of attributes
-    awk '/lime_/ && c == 0 { c = 1; system("cat") } { print }' application/config/config-sample-mysql.php > /etc/limesurvey/config.php <<'EOPHP'
+        awk '/lime_/ && c == 0 { c = 1; system("cat") } { print }' application/config/config-sample-mysql.php > /etc/limesurvey/config.php <<'EOPHP'
             'attributes' => array(),
 EOPHP
     fi
@@ -217,7 +217,7 @@ function limesurvey_global_configuration()
 
     $con->close();
 
-    fwrite($stderr, "\nMySQL "Global settings configured" updated.\n");
+    fwrite($stderr, "\n" . 'MySQL "Global settings configured" updated'. "\n");
 
     exit(0);
 EOPHP
