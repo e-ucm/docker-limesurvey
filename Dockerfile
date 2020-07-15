@@ -78,9 +78,9 @@ RUN { \
         echo 'date.timezone=Europe/Madrid'; \
     } > /usr/local/etc/php/conf.d/timezone.ini
 
-ENV LIMESURVEY_VERSION 4.3.2+200629
+ENV LIMESURVEY_VERSION 4.3.3+200707
 ENV DOWNLOAD_URL https://github.com/LimeSurvey/LimeSurvey/archive/${LIMESURVEY_VERSION}.tar.gz
-ENV DOWNLOAD_SHA256 c9e52a28a40a3e0f5af12fcba22a3e28e8498eb153decb8aac890020ec362eba
+ENV DOWNLOAD_SHA256 8f0429c99c5090ded08403fa2cf5ce196f9feaba7b8cb31b47de6f96dbd5bc27
 
 RUN set -ex; \
     curl -SL "$DOWNLOAD_URL" -o /tmp/lime.tar.gz; \
