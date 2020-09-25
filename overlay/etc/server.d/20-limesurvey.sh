@@ -194,7 +194,7 @@ function limesurvey_global_configuration()
         'force_ssl' => 'on'
     );
 
-    $query = "INSERT INTO `".$argv[5]."settings_global` (`stg_value`, `stg_name`) VALUES (?, ?) ";
+    $query = "INSERT INTO `".$argv[5]."settings_global` (`stg_name`, `stg_value`) VALUES (?, ?) ";
 
     $stmt = $con->prepare($query);
 
