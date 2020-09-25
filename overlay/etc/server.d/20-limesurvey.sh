@@ -6,7 +6,7 @@ function limesurvey_setup()
     if [[ ! -e "/etc/limesurvey/config.php" ]]; then
         echo >&2 "No config file in /etc/limesurvey Copying default config file..."
         #Copy default config file but also allow for the addition of attributes
-        awk '/lime_/ && c == 0 { c = 1; system("cat") } { print }' application/config/config-sample-mysql.php > /etc/limesurvey/config.php <<'EOPHP'
+        awk '/lime_/ && c == 0 { c = 1; system("cat") } { print }' /var/www/html/application/config/config-sample-mysql.php > /etc/limesurvey/config.php <<'EOPHP'
             'attributes' => array(),
 EOPHP
     fi
@@ -81,10 +81,10 @@ function limesurvey_configure()
     fi
 
 
-    chown www-data:www-data -R tmp 
+    chown www-data:www-data -R /var/www/html/tmp
     mkdir -p upload/surveys
-    chown www-data:www-data -R upload 
-    chown www-data:www-data -R application/config
+    chown www-data:www-data -R /var/www/html/upload
+    chown www-data:www-data -R /var/www/html/application/config
 
     DBSTATUS=$(TERM=dumb php -- "$LIMESURVEY_DB_HOST" "$LIMESURVEY_DB_USER" "$LIMESURVEY_DB_PASSWORD" "$LIMESURVEY_DB_NAME" "$LIMESURVEY_TABLE_PREFIX" "$MYSQL_SSL_CA" <<'EOPHP'
 <?php
