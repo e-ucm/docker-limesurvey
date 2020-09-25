@@ -91,7 +91,7 @@ RUN set -ex; \
 
 COPY overlay /
 RUN set -ex; \
-    find /var/tmp/patches -type f -exec patch -p1 -i {} \;; \
+    find /var/tmp/patches/limesurvey -type f -exec patch -p1 -i {} \;; \
     mkdir /etc/limesurvey;
 
 ENV LIMESURVEY_AUTHSAML_VERSION 0.1.0
