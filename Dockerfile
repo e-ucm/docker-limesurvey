@@ -94,9 +94,9 @@ RUN set -ex; \
     find /var/tmp/patches/limesurvey -type f -exec patch -p1 -i {} \;; \
     mkdir /etc/limesurvey;
 
-ENV LIMESURVEY_AUTHSAML_VERSION 0.1.0
+ENV LIMESURVEY_AUTHSAML_VERSION 0.2.0
 ENV LIMESURVEY_AUTHSAML_URL https://github.com/e-ucm/Limesurvey-SAML-Authentication/archive/${LIMESURVEY_AUTHSAML_VERSION}.tar.gz
-ENV LIMESURVEY_AUTHSAML_SHA256 e7991e0872251d15dca8e6638cde3a48a1013b1a1c61877ef7df41a5c5ab8bd1
+ENV LIMESURVEY_AUTHSAML_SHA256 b3f42d01515d429a379d63ded074a32c83dbae35fa89f439551b140a43705456
 RUN set -ex; \
     curl -SL "$LIMESURVEY_AUTHSAML_URL" -o /tmp/authsaml.tar.gz; \
     echo "$LIMESURVEY_AUTHSAML_SHA256 /tmp/authsaml.tar.gz" | sha256sum -c -; \
