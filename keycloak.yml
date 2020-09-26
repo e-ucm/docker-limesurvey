@@ -1,0 +1,55 @@
+version: '3.7'
+
+services:
+
+  keycloak:
+    image: jboss/keycloak:10.0.2
+    entrypoint:
+      - '/bin/bash'
+      - '-c'
+      - '/opt/jboss/tools/docker-entrypoint.sh $$@'
+    command:
+      - "--"
+      - "-b 0.0.0.0"
+    environment:
+      - DB_VENDOR=mariadb
+      - DB_ADDR=mariadb-kc.${INTERNAL_DOMAIN:-internal.test}
+      - DB_DATABASE=keycloak
+      - DB_USER=keycloak
+      - DB_PASSWORD=password
+      - KEYCLOAK_USER=admin
+      - KEYCLOAK_PASSWORD=password
+      - PROXY_ADDRESS_FORWARDING=true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - mariadb-kc
+    hostname: keycloak.${INTERNAL_DOMAIN:-internal.test}
+    networks:
+      default:
+        aliases:
+          - keycloak.${INTERNAL_DOMAIN:-internal.test}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+      - "traefik.http.routers.keycloak.rule=Host(`keycloak.${EXTERNAL_DOMAIN:-external.test}`)"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls=true"
+
+  mariadb-kc:
+    image: mariadb:10.4.13
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=keycloak
+      - MYSQL_USER=keycloak
+      - MYSQL_PASSWORD=password
+# https://github.com/docker-library/mariadb/issues/261
+# https://github.com/docker-library/mariadb/issues/262
+      - MYSQL_INITDB_SKIP_TZINFO=true
+    hostname: mariadb-kc.${INTERNAL_DOMAIN:-internal.test}
+    networks:
+      default:
+        aliases:
+          - mariadb-kc.${INTERNAL_DOMAIN:-internal.test}
