@@ -1,4 +1,4 @@
-FROM eucm/simplesamlphp:1.18.8
+FROM eucm/simplesamlphp:1.18.8-4
 
 # Optimize recurrent builds by using a helper container runing apt-cache
 ARG USE_APT_CACHE
