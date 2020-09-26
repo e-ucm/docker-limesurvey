@@ -61,7 +61,7 @@ function limesurvey_saml_setup()
         array('saml_mail_mapping', '"mail"'),
         array('saml_group_mapping', '"member"'),
         array('user_access_group', '""'),
-        array('saml_name_mapping', '"cn"'),
+        array('saml_name_mapping', '"username"'),
         array('auto_create_users', '"1"'),
         array('auto_update_users', '"1"'),
         array('force_saml_login', '""'),
