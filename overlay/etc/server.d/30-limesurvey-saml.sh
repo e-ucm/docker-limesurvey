@@ -72,7 +72,7 @@ function limesurvey_saml_setup()
         array('auto_create_labelsets', '""'),
         array('auto_create_participant_panel', '""'),
         array('auto_create_settings_plugins', '""'),
-        array('auto_create_surveys', '"1"'),
+        array('auto_create_surveys', '"create_p"'),
         array('auto_create_templates', '""'),
         array('auto_create_user_groups', '""'),
     );
