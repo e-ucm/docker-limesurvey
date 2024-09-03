@@ -35,6 +35,7 @@ services:
       - KC_LOG_LEVEL=info
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - ./keycloak-saml:/data/keycloak-saml/:ro
     depends_on:
       - mariadb-kc
     hostname: keycloak.${INTERNAL_DOMAIN:-internal.test}

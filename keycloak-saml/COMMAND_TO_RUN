@@ -1,0 +1,3 @@
+docker compose -f docker-compose.yml -f keycloak.yml exec keycloak /bin/bash
+sh "/data/keycloak-saml/config-keycloak-saml-provider.sh"
+exit
