@@ -3,23 +3,36 @@ version: '3.7'
 services:
 
   keycloak:
-    image: jboss/keycloak:10.0.2
+    image: quay.io/keycloak/keycloak:24.0.2
     entrypoint:
       - '/bin/bash'
       - '-c'
-      - '/opt/jboss/tools/docker-entrypoint.sh $$@'
-    command:
-      - "--"
-      - "-b 0.0.0.0"
+      - '/opt/keycloak/bin/kc.sh build && /opt/keycloak/bin/kc.sh start --optimized'
     environment:
-      - DB_VENDOR=mariadb
-      - DB_ADDR=mariadb-kc.${INTERNAL_DOMAIN:-internal.test}
-      - DB_DATABASE=keycloak
-      - DB_USER=keycloak
-      - DB_PASSWORD=password
-      - KEYCLOAK_USER=admin
-      - KEYCLOAK_PASSWORD=password
+      # Database
+      - KC_DB=mariadb
+      - KC_DB_URL_HOST=mariadb-kc.${INTERNAL_DOMAIN:-internal.test}
+      - KC_DB_URL_DATABASE=keycloak
+      - KC_DB_USER=keycloak
+      - KC_DB_PASSWORD=password
+      # Master Realm + Admin user
+      - KC_REALM_NAME=master
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=password
+      # Hostname
+      - KC_HOSTNAME=keycloak.${EXTERNAL_DOMAIN:-external.test}
+      - KC_HOSTNAME_STRICT_HTTPS=true
+      - KC_HOSTNAME_STRICT=false
+      # HTTP
+      - KC_HTTP_ENABLED=true
+      - KC_HTTP_HOST=0.0.0.0
+      - HTTP_ADDRESS_FORWARDING=true
+      # PROXY
+      - KC_PROXY=edge
+      - KC_PROXY_HEADERS=xforwarded
       - PROXY_ADDRESS_FORWARDING=true
+      # Log level
+      - KC_LOG_LEVEL=info
     volumes:
       - /etc/localtime:/etc/localtime:ro
     depends_on:
