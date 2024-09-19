@@ -2,7 +2,7 @@
 set -euo pipefail
 [[ "${DEBUG:-false}" == "true" ]] && set -x
 
-KEYCLOAK_SERVER_URL="http://0.0.0.0:8080"
+KEYCLOAK_SERVER_URL="https://limesurvey.${EXTERNAL_DOMAIN:-external.test}:443"
 KEYCLOAK_REALM="master"
 KEYCLOAK_ADMIN_USERNAME="admin"
 KEYCLOAK_ADMIN_PASSWORD="password"
