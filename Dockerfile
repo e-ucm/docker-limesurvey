@@ -1,4 +1,4 @@
-FROM eucm/simplesamlphp:1.19.9
+FROM eucm/simplesamlphp:1.19.9-1
 
 # Optimize recurrent builds by using a helper container runing apt-cache
 ARG USE_APT_CACHE
@@ -16,7 +16,6 @@ RUN set -ex; \
         libc-client-dev \
         libfreetype6-dev \
         libmcrypt-dev \
-        libpng-dev \
         libjpeg-dev \
         libwebp-dev \
         libxpm-dev \
@@ -29,7 +28,7 @@ RUN set -ex; \
         libsodium-dev \
     ; \
     \
-    docker-php-ext-configure gd --with-freetype-dir=/usr/include/  --with-png-dir=/usr --with-jpeg-dir=/usr --with-webp-dir=/usr --with-xpm-dir=/usr; \
+    docker-php-ext-configure gd --with-freetype=/usr/include/  --with-jpeg=/usr --with-webp=/usr --with-xpm=/usr; \
     docker-php-ext-install gd; \
     docker-php-ext-install mysqli pdo pdo_mysql opcache bz2 zip iconv tidy; \
     docker-php-ext-configure ldap --with-libdir=lib/x86_64-linux-gnu/; \ 
