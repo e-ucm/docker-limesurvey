@@ -1,4 +1,4 @@
-FROM eucm/simplesamlphp:1.18.8-5
+FROM eucm/simplesamlphp:1.19.9
 
 # Optimize recurrent builds by using a helper container runing apt-cache
 ARG USE_APT_CACHE
@@ -78,9 +78,9 @@ RUN { \
         echo 'date.timezone=Europe/Madrid'; \
     } > /usr/local/etc/php/conf.d/timezone.ini
 
-ENV LIMESURVEY_VERSION 4.3.15+200907
+ENV LIMESURVEY_VERSION 4.3.34+210119
 ENV DOWNLOAD_URL https://github.com/LimeSurvey/LimeSurvey/archive/${LIMESURVEY_VERSION}.tar.gz
-ENV DOWNLOAD_SHA256 46fbdf7ab3760c64ecd145b97e24be7705f1deebeb67c9e7b58a55ed106b73a2
+ENV DOWNLOAD_SHA256 797d5061123098b1a0fd446681606eb97e3e1004e2fad49128d4d8f38dea4a11
 
 RUN set -ex; \
     curl -SL "$DOWNLOAD_URL" -o /tmp/lime.tar.gz; \
