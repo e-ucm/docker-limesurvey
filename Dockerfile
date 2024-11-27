@@ -1,4 +1,4 @@
-FROM eucm/simplesamlphp:1.19.9-1
+FROM eucm/simplesamlphp:1.19.9-2
 
 # Optimize recurrent builds by using a helper container runing apt-cache
 ARG USE_APT_CACHE
@@ -111,7 +111,4 @@ RUN set -ex; \
     cp -a /var/www/html/upload /usr/share/limesurvey; \
     cp -a /var/www/html/tmp /usr/share/limesurvey;
 
-VOLUME ["/etc/limesurvey"]
-VOLUME ["/var/www/html/plugins"]
-VOLUME ["/var/www/html/upload"]
-VOLUME ["/var/www/html/tmp"]
+VOLUME [ "/etc/limesurvey", "/var/www/html/plugins", "/var/www/html/upload", "/var/www/html/tmp" ]
