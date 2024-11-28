@@ -2,7 +2,7 @@ FROM eucm/simplesamlphp:1.19.9-3
 
 # Optimize recurrent builds by using a helper container runing apt-cache
 ARG USE_APT_CACHE
-ENV USE_APT_CACHE ${USE_APT_CACHE}
+ENV USE_APT_CACHE=${USE_APT_CACHE}
 RUN ([ ! -z $USE_APT_CACHE ] && echo 'Acquire::http { Proxy "http://172.17.0.1:3142"; };' >> /etc/apt/apt.conf.d/01proxy \
     && echo 'Acquire::HTTPS::Proxy "false";' >> /etc/apt/apt.conf.d/01proxy) || true
 
@@ -65,9 +65,9 @@ RUN { \
         echo 'date.timezone=Europe/Madrid'; \
     } > /usr/local/etc/php/conf.d/timezone.ini
 
-ENV LIMESURVEY_VERSION 4.6.3+210518
-ENV DOWNLOAD_URL https://github.com/LimeSurvey/LimeSurvey/archive/${LIMESURVEY_VERSION}.tar.gz
-ENV DOWNLOAD_SHA256 3c59afc13d0cf974c465c5f851cb8837117518e94031f5e3a28ba468ad734ce2
+ENV LIMESURVEY_VERSION=4.6.3+210518
+ENV DOWNLOAD_URL=https://github.com/LimeSurvey/LimeSurvey/archive/${LIMESURVEY_VERSION}.tar.gz
+ENV DOWNLOAD_SHA256=3c59afc13d0cf974c465c5f851cb8837117518e94031f5e3a28ba468ad734ce2
 
 RUN set -ex; \
     curl -SL "$DOWNLOAD_URL" -o /tmp/lime.tar.gz; \
@@ -81,9 +81,9 @@ RUN set -ex; \
     find /var/tmp/patches/limesurvey -type f -exec patch -p1 -i {} \;; \
     mkdir /etc/limesurvey;
 
-ENV LIMESURVEY_AUTHSAML_VERSION 0.2.0
-ENV LIMESURVEY_AUTHSAML_URL https://github.com/e-ucm/Limesurvey-SAML-Authentication/archive/${LIMESURVEY_AUTHSAML_VERSION}.tar.gz
-ENV LIMESURVEY_AUTHSAML_SHA256 b3f42d01515d429a379d63ded074a32c83dbae35fa89f439551b140a43705456
+ENV LIMESURVEY_AUTHSAML_VERSION=0.2.0
+ENV LIMESURVEY_AUTHSAML_URL=https://github.com/e-ucm/Limesurvey-SAML-Authentication/archive/${LIMESURVEY_AUTHSAML_VERSION}.tar.gz
+ENV LIMESURVEY_AUTHSAML_SHA256=b3f42d01515d429a379d63ded074a32c83dbae35fa89f439551b140a43705456
 RUN set -ex; \
     curl -SL "$LIMESURVEY_AUTHSAML_URL" -o /tmp/authsaml.tar.gz; \
     echo "$LIMESURVEY_AUTHSAML_SHA256 /tmp/authsaml.tar.gz" | sha256sum -c -; \
