@@ -1,15 +1,30 @@
-version: '3.7'
-
 services:
 
   limesurvey:
     build:
       context: .
-    entrypoint: /bin/bash
-#    command: /bin/bash
+    entrypoint:
+      - '/bin/sh'
+      - '-c'
+      - |
+        if [ ! -f "/usr/local/share/ca-certificates/dev.crt" ]; then
+          if [ -f "$${CAROOT}/rootCA.pem" ]; then
+        cp $${CAROOT}/rootCA.pem /usr/local/share/ca-certificates/dev.crt;
+        update-ca-certificates;
+          fi
+        fi
+        # To develop comment out next line
+        /usr/local/bin/entrypoint /usr/local/bin/server
+        # To develop uncomment next line 
+        #/bin/bash
     stdin_open: true
     tty: true
+    depends_on:
+      - keycloak
     environment:
+      TZ: "Europe/Madrid"
+      DEBUG: "true"
+      # Limesurvey config
       LIMESURVEY_DB_HOST: "mariadb-ls.${INTERNAL_DOMAIN:-internal.test}"
       LIMESURVEY_DB_USER: "limesurvey"
       LIMESURVEY_DB_PASSWORD: "password"
@@ -19,35 +34,40 @@ services:
       LIMESURVEY_ADMIN_EMAIL: lime-dev@limesurvey.${EXTERNAL_DOMAIN:-external.test}
       LIMESURVEY_SAML_PLUGIN_AUTH_SOURCE: "sp-test"
       LIMESURVEY_SAML_PLUGIN_UID_MAPPING: "username"
-      DEBUG: "true"
-      SIMPLESAMLPHP_PATH: "/simplesamlphp"
+      # Simplesamlphp config
+      APACHE2_REMOTEIP_TRUSTPROXY_HOSTNAME: "traefik.${INTERNAL_DOMAIN:-internal.test}"
       SIMPLESAMLPHP_SESSION_COOKIE_PATH: "/"
+      SIMPLESAMLPHP_ENABLE_GLOBAL: "true"
+      SIMPLESAMLPHP_ENABLE_VHOST: "000-default"
+      SIMPLESAMLPHP_BASEURLPATH: "https://limesurvey.${EXTERNAL_DOMAIN:-external.test}/simplesamlphp/"
       SIMPLESAMLPHP_ADMIN_PASSWORD: "password"
       SIMPLESAMLPHP_DEBUG_SAML: "true"
       SIMPLESAMLPHP_LOG_LEVEL: "DEBUG"
-      SIMPLESAMLPHP_ADMIN_PROTECT_INDEX_PAGE: "true"
-      SIMPLESAMLPHP_ENABLE_DEFAULT_VHOST: "true"
-      SIMPLESAMLPHP_INTERNAL_PROXY_HOSTNAME: "traefik.${INTERNAL_DOMAIN:-internal.test}"
       SIMPLESAMLPHP_SP_CERT_SUBJ: "/C=ES/ST=Madrid/L=Madrid/O=Universidad Complutense de Madrid/OU=e-UCM/CN=limesurvey.${INTERNAL_DOMAIN:-internal.test}"
       SIMPLESAMLPHP_SP_NAME: "sp-test"
       SIMPLESAMLPHP_SIGN_AUTHN_REQUESTS: "true"
       SIMPLESAMLPHP_SIGN_LOGOUT_REQUESTS: "true"
       SIMPLESAMLPHP_SIGN_REDIRECTS_REQUESTS: "true"
       SIMPLESAMLPHP_ENCRYPTED_ASSERTIONS: "true"
-      SIMPLESAMLPHP_SP_IDP_ID: "https://keycloak.${EXTERNAL_DOMAIN:-external.test}/auth/realms/master"
-      SIMPLESAMLPHP_SP_IDP_METADATA_URL: "https://keycloak.${EXTERNAL_DOMAIN:-external.test}/auth/realms/master/protocol/saml/descriptor"
-      SIMPLESAMLPHP_CA_FILE: "/etc/simplesamlphp/ca/rootCA.pem"
+      SIMPLESAMLPHP_SP_IDP_ID: "https://sso.${EXTERNAL_DOMAIN:-external.test}/realms/master"
+      SIMPLESAMLPHP_SP_IDP_METADATA_URL: "https://sso.${EXTERNAL_DOMAIN:-external.test}/realms/master/protocol/saml/descriptor"
       MSMTP_HOST: "mail.${INTERNAL_DOMAIN:-internal.test}"
       MSMTP_FROM: "no-reply@limesurvey.${EXTERNAL_DOMAIN:-external.test}"
-    depends_on:
-      - mariadb-ls
+      MSMTP_PORT: 1025
+      # Development
+      SIMPLESAMLPHP_CA_FILE: "${CAROOT:-/etc/traefik/ssl/ca}/rootCA.pem"
     volumes:
-      - "./overlay/etc/entrypoint.d/20-limesurvey.sh:/etc/entrypoint.d/20-limesurvey.sh"
-      - "./overlay/etc/entrypoint.d/30-limesurvey-saml.sh:/etc/entrypoint.d/30-limesurvey-saml.sh"
-      - "./overlay/etc/server.d/20-limesurvey.sh:/etc/server.d/20-limesurvey.sh"
-      - "./overlay/etc/server.d/30-limesurvey-saml.sh:/etc/server.d/30-limesurvey-saml.sh"
+      - /etc/localtime:/etc/localtime:ro
+      # Development
+      - "./overlay/etc/entrypoint/entrypoint.d/20-limesurvey.sh:/etc/entrypoint/entrypoint.d/20-limesurvey.sh"
+      - "./overlay/etc/entrypoint/entrypoint.d/30-limesurvey-saml.sh:/etc/entrypoint/entrypoint.d/30-limesurvey-saml.sh"
+      - "./overlay/etc/server/server.d/20-limesurvey.sh:/etc/server/server.d/20-limesurvey.sh"
+      - "./overlay/etc/server/server.d/30-limesurvey-saml.sh:/etc/server/server.d/30-limesurvey-saml.sh"
       - "./overlay/var/tmp/patches/limesurvey:/var/tmp/patches/limesurvey"
-      - "./traefik-data/ca:/etc/simplesamlphp/ca"
+      - limesurvey-authsaml:/var/www/html/plugins/AuthSAML
+      - apache2-etc:/etc/apache2
+      - simplesamlphp-etc:/etc/simplesamlphp
+      - traefik:/etc/traefik
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.limesurvey.loadbalancer.server.port=80"
@@ -293,3 +313,9 @@ volumes:
       type: none
       o: bind
       device: ./data/limesurvey/mariadb
+  limesurvey-authsaml:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/limesurvey/authsaml
