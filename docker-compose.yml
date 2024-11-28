@@ -56,17 +56,15 @@ services:
       - "traefik.http.routers.limesurvey.tls=true"
 
   mariadb-ls:
-    image: mariadb:10.4.13
+    image: mariadb:10.11.9
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - limesurvey-mariadb:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=limesurvey
       - MYSQL_USER=limesurvey
       - MYSQL_PASSWORD=password
-# https://github.com/docker-library/mariadb/issues/261
-# https://github.com/docker-library/mariadb/issues/262
-      - MYSQL_INITDB_SKIP_TZINFO=true
     hostname: mariadb-ls.${INTERNAL_DOMAIN:-internal.test}
     networks:
       default:
@@ -74,7 +72,7 @@ services:
           - mariadb-ls.${INTERNAL_DOMAIN:-internal.test}
 
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin:5.0.2
+    image: phpmyadmin/phpmyadmin:5.2.1
     environment:
       PMA_HOSTS: "mariadb-ls.${INTERNAL_DOMAIN:-internal.test},mariadb-kc.${INTERNAL_DOMAIN:-internal.test}"
     depends_on:
@@ -86,10 +84,10 @@ services:
           - phpmyadmin.limesurvey.${INTERNAL_DOMAIN:-internal.test}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.ls-phpmyadmin.loadbalancer.server.port=80"
-      - "traefik.http.routers.ls-phpmyadmin.rule=Host(`phpmyadmin.${EXTERNAL_DOMAIN:-external.test}`)"
-      - "traefik.http.routers.ls-phpmyadmin.entrypoints=websecure"
-      - "traefik.http.routers.ls-phpmyadmin.tls=true"
+      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.${EXTERNAL_DOMAIN:-external.test}`)"
+      - "traefik.http.routers.phpmyadmin.entrypoints=websecure"
+      - "traefik.http.routers.phpmyadmin.tls=true"
 
   traefik:
     image: traefik:3.1.7
@@ -289,3 +287,9 @@ volumes:
       type: none
       o: bind
       device: ./data/simplesamlphp
+  limesurvey-mariadb:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/limesurvey/mariadb
