@@ -92,73 +92,9 @@ services:
       - "traefik.http.routers.ls-phpmyadmin.tls=true"
 
   traefik:
-    image: traefik:2.2.11
-    entrypoint:
-      - '/bin/sh'
-      - '-c'
-      - |
-        if [[ ! -e "$${CAROOT}/rootCA.pem" ]]; then
-          if [[ ! -d "$${CAROOT}" ]]; then
-            mkdir -p "$${CAROOT}";
-          fi;
-
-          # mkcert installation
-          wget -O /tmp/mkcert -q $${MKCERT_DOWNLOAD_URL};
-          echo "$${MKCERT_SHA256}  /tmp/mkcert" | sha256sum -c -w -s -;
-          mv /tmp/mkcert /usr/local/bin;
-          chmod +x /usr/local/bin/mkcert;
-
-          # generate ca
-          mkdir -p $${CAROOT};
-          mkcert --install;
-
-          echo "Development CA certificate, beware !";
-          cat $$(mkcert -CAROOT)/rootCA.pem;
-        fi;
-
-        if [[ ! -e "/etc/traefik/ssl/traefik-key.pem" ]]; then
-          if [[ ! -d "/etc/traefik/ssl" ]]; then
-            # generate "localhost certificate"
-            mkdir -p /etc/traefik/ssl;
-          fi;
-
-          mkcert -cert-file /etc/traefik/ssl/traefik.pem -key-file /etc/traefik/ssl/traefik-key.pem "localhost" "127.0.0.1" "::1";
-          cp /etc/traefik/ssl/traefik.pem /etc/traefik/ssl/traefik-fullchain.pem;
-          cat $$(mkcert -CAROOT)/rootCA.pem >> /etc/traefik/ssl/traefik-fullchain.pem;
-        fi;
-
-        mkdir -p /etc/traefik/conf/dynamic-config;
-        cat << EOF > /etc/traefik/conf/dynamic-config/file-provider.toml
-        [[tls.certificates]]
-          certFile = "/etc/traefik/ssl/traefik-fullchain.pem"
-          keyFile = "/etc/traefik/ssl/traefik-key.pem"
-          stores = ["default"]
-
-        [tls.stores]
-          [tls.stores.default]
-            [tls.stores.default.defaultCertificate]
-              certFile = "/etc/traefik/ssl/traefik-fullchain.pem"
-              keyFile  = "/etc/traefik/ssl/traefik-key.pem"
-
-        [tls.options]
-          [tls.options.default]
-            minVersion = "VersionTLS12"
-          [tls.options.myTLSOptions]
-            minVersion = "VersionTLS13"
-
-        [http.middlewares]
-          [http.middlewares.dashboardAuth.basicAuth]
-            # admin:password
-            users = [
-              "admin:\$$apr1\$$97xk9Kkr\$$gavbmzhrI6uOVYNOfYByQ/"
-            ]
-          [http.middlewares.redirect-to-https.redirectScheme]
-            scheme = "https"
-            permanent = true
-        EOF
-        exec /entrypoint.sh "$$@"
+    image: traefik:3.1.7
+    entrypoint: /etc/entrypoint/entrypoint.sh
     command:
-      - "--"
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.tls=true
@@ -175,14 +111,13 @@ services:
       - --log.level=INFO
       - --log.format=json
     environment:
-      - MKCERT_VERSION=${MKCERT_VERSION:-v1.4.1}
-      - MKCERT_DOWNLOAD_URL=https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION:-v1.4.1}/mkcert-${MKCERT_VERSION:-v1.4.1}-linux-amd64
-      - MKCERT_SHA256=${MKCERT_SHA256SUM:-e116543bfabb4d88010dda8a551a5d01abbdf9b4f2c949c044b862365038f632}
-      - CAROOT=/etc/traefik/ca
+      - CAROOT=${CAROOT:-/etc/traefik/ssl/ca}
+      - DNS_SERVERS=${DNS_SERVERS:-8.8.8.8 8.8.4.4}
     volumes:
-      - "./traefik-data/ca:/etc/traefik/ca"
-      - "./traefik-data/ssl:/etc/traefik/ssl"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik:/etc/entrypoint"
+      - traefik:/etc/traefik
+      - development:/development
     ports:
       - "127.0.0.1:80:80"
       - "127.0.0.1:443:443"
@@ -190,12 +125,11 @@ services:
     networks:
       default:
         aliases:
-          - "traefik.${INTERNAL_DOMAIN:-internal.test}"
           - "traefik.${EXTERNAL_DOMAIN:-external.test}"
-          - "keycloak.${EXTERNAL_DOMAIN:-external.test}"
+          - "sso.${EXTERNAL_DOMAIN:-external.test}"
           - "limesurvey.${EXTERNAL_DOMAIN:-external.test}"
-          - "phpmyadmin.${EXTERNAL_DOMAIN:-external.test}"
           - "mail.${EXTERNAL_DOMAIN:-external.test}"
+          - "traefik.${INTERNAL_DOMAIN:-internal.test}"
     labels:
       - "traefik.enable=true"
       # Global redirect http to https
@@ -211,11 +145,79 @@ services:
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.middlewares=dashboardAuth@file"
 
-  mail:
-    image: maildev/maildev:1.1.0
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.2
+    entrypoint:
+      - '/bin/bash'
+      - '-c'
+      - |
+        find /development/ext -type f -iname '*.jar' -exec cp {} /opt/keycloak/providers \; ;
+        /opt/keycloak/bin/kc.sh build && /opt/keycloak/bin/kc.sh start --optimized --verbose
     environment:
-      - MAILDEV_SMTP_PORT=25
-      - MAILDEV_WEB_PORT=80
+      # Database
+      - KC_DB=mariadb
+      - KC_DB_URL_HOST=mariadb.${INTERNAL_DOMAIN:-internal.test}
+      - KC_DB_URL_DATABASE=keycloak
+      - KC_DB_USER=keycloak
+      - KC_DB_PASSWORD=password
+      # Master Realm + Admin user
+      - KC_REALM_NAME=master
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=password
+      # Hostname
+      - KC_HOSTNAME=sso.${EXTERNAL_DOMAIN:-external.test}
+      - KC_HOSTNAME_STRICT_HTTPS=true
+      - KC_HOSTNAME_STRICT=false
+      # HTTP
+      - KC_HTTP_ENABLED=true
+      - KC_HTTP_HOST=0.0.0.0
+      - HTTP_ADDRESS_FORWARDING=true
+      # PROXY
+      - KC_PROXY=edge
+      - KC_PROXY_HEADERS=xforwarded
+      - PROXY_ADDRESS_FORWARDING=true
+      # Log level
+      - KC_LOG_LEVEL=info
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./keycloak:/scripts/keycloak/:ro
+      - development:/development
+    depends_on:
+      - mariadb
+      - traefik
+    hostname: sso.${INTERNAL_DOMAIN:-internal.test}
+    networks:
+      default:
+        aliases:
+          - sso.${INTERNAL_DOMAIN:-internal.test}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.sso.loadbalancer.server.port=8080"
+      - "traefik.http.routers.sso.rule=Host(`sso.${EXTERNAL_DOMAIN:-external.test}`)"
+      - "traefik.http.routers.sso.entrypoints=websecure"
+      - "traefik.http.routers.sso.tls=true"
+
+  mariadb:
+    image: mariadb:10.11.9
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - keycloak-mariadb:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=keycloak
+      - MYSQL_USER=keycloak
+      - MYSQL_PASSWORD=password
+    hostname: mariadb.${INTERNAL_DOMAIN:-internal.test}
+    networks:
+      default:
+        aliases:
+          - mariadb.${INTERNAL_DOMAIN:-internal.test}
+
+  mail:
+    image: maildev/maildev:2.1.0
+    # Fix: https://github.com/maildev/maildev/issues/484#issuecomment-2015490293
+    healthcheck:
+      test: 'wget -O - http://127.0.0.1:$${MAILDEV_WEB_PORT}$${MAILDEV_BASE_PATHNAME}/healthz || exit 1'
     hostname: mail.${INTERNAL_DOMAIN:-internal.test}
     networks:
       default:
@@ -223,7 +225,67 @@ services:
           - "mail.${INTERNAL_DOMAIN:-internal.test}"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.mail.loadbalancer.server.port=80"
+      - "traefik.http.services.mail.loadbalancer.server.port=1080"
       - "traefik.http.routers.mail.rule=Host(`mail.${EXTERNAL_DOMAIN:-external.test}`)"
       - "traefik.http.routers.mail.entrypoints=websecure"
       - "traefik.http.routers.mail.tls=true"
+
+  whoami:
+    image: traefik/whoami
+    hostname: whoami.${INTERNAL_DOMAIN:-internal.test}
+    networks:
+      default:
+        aliases:
+          - "whoami.${INTERNAL_DOMAIN:-internal.test}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.${EXTERNAL_DOMAIN:-external.test}`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
+
+  dns:
+    image: coredns/coredns:1.11.4
+    command: -conf /development/coredns/Corefile
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - development:/development
+    ports:
+      - "${DNS_BIND_IP:-127.1.1.1}:53:53/udp"
+    hostname: dns.${INTERNAL_DOMAIN:-internal.test}
+    networks:
+      default:
+        aliases:
+          - "dns.${INTERNAL_DOMAIN:-internal.test}"
+
+volumes:
+  traefik:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/traefik
+  development:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/development
+  keycloak-mariadb:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/keycloak/mariadb
+  apache2-etc:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/apache2
+  simplesamlphp-etc:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/simplesamlphp
