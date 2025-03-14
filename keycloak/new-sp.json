@@ -1,0 +1,76 @@
+{
+  "protocolMappers": [
+    {
+      "name": "User's group",
+      "protocol": "saml",
+      "protocolMapper": "saml-group-membership-mapper",
+      "consentRequired": false,
+      "config": {
+        "single": "false",
+        "attribute.nameformat": "Basic",
+        "full.path": "true",
+        "friendly.name": "Group where the user participates",
+        "attribute.name": "member"
+      }
+    },
+    {
+      "name": "User's username",
+      "protocol": "saml",
+      "protocolMapper": "saml-user-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "attribute.nameformat": "Basic",
+        "user.attribute": "username",
+        "friendly.name": "username",
+        "attribute.name": "User's username"
+      }
+    },
+    {
+      "name": "Fullname",
+      "protocol": "saml",
+      "protocolMapper": "saml-fullname-attribute-mapper",
+      "consentRequired": false,
+      "config": {
+        "attribute.nameformat": "Basic",
+        "friendly.name": "User's Fullname",
+        "attribute.name": "full_name"
+      }
+    },
+    {
+      "name": "Is User email verified",
+      "protocol": "saml",
+      "protocolMapper": "saml-user-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "attribute.nameformat": "Basic",
+        "user.attribute": "emailVerified",
+        "friendly.name": "Represent if the user's email has been verified",
+        "attribute.name": "email_verified"
+      }
+    },
+    {
+      "name": "User identifier",
+      "protocol": "saml",
+      "protocolMapper": "saml-user-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "attribute.nameformat": "Basic",
+        "user.attribute": "id",
+        "friendly.name": "User identifier",
+        "attribute.name": "uid"
+      }
+    },
+    {
+      "name": "saml_mail",
+      "protocol": "saml",
+      "protocolMapper": "saml-user-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "attribute.nameformat": "Basic",
+        "user.attribute": "email",
+        "friendly.name": "User email",
+        "attribute.name": "email"
+      }
+    }
+  ]
+}

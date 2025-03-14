@@ -1,25 +1,25 @@
 version: '3.7'
 
 services:
-
   limesurvey:
-    build:
-      context: .
+    image: martialblog/limesurvey:6-apache
     entrypoint: /bin/bash
-#    command: /bin/bash
     stdin_open: true
     tty: true
     environment:
-      LIMESURVEY_DB_HOST: "mariadb-ls.${INTERNAL_DOMAIN:-internal.test}"
-      LIMESURVEY_DB_USER: "limesurvey"
-      LIMESURVEY_DB_PASSWORD: "password"
-      LIMESURVEY_ADMIN_USER: "admin"
-      LIMESURVEY_ADMIN_PASSWORD: "password2"
-      LIMESURVEY_ADMIN_NAME: Lime Administrator
-      LIMESURVEY_ADMIN_EMAIL: lime-dev@limesurvey.${EXTERNAL_DOMAIN:-external.test}
+      PUBLIC_URL: "https://limesurvey.${EXTERNAL_DOMAIN:-external.test}:443"
+      BASE_URL: "https://limesurvey.${EXTERNAL_DOMAIN:-external.test}:443"
+      DB_HOST: mariadb-ls.${INTERNAL_DOMAIN:-internal.test}
+      DB_NAME: limesurvey
+      DB_USERNAME: limesurvey
+      DB_PASSWORD: password
+      ADMIN_USER: admin
+      ADMIN_PASSWORD: password2
+      ADMIN_NAME: Lime Administrator
+      ADMIN_EMAIL: lime-dev@limesurvey.${EXTERNAL_DOMAIN:-external.test}
       LIMESURVEY_SAML_PLUGIN_AUTH_SOURCE: "sp-test"
       LIMESURVEY_SAML_PLUGIN_UID_MAPPING: "username"
-      DEBUG: "true"
+      DEBUG: true
       SIMPLESAMLPHP_PATH: "/simplesamlphp"
       SIMPLESAMLPHP_SESSION_COOKIE_PATH: "/"
       SIMPLESAMLPHP_ADMIN_PASSWORD: "password"
@@ -34,39 +34,48 @@ services:
       SIMPLESAMLPHP_SIGN_LOGOUT_REQUESTS: "true"
       SIMPLESAMLPHP_SIGN_REDIRECTS_REQUESTS: "true"
       SIMPLESAMLPHP_ENCRYPTED_ASSERTIONS: "true"
-      SIMPLESAMLPHP_SP_IDP_ID: "https://keycloak.${EXTERNAL_DOMAIN:-external.test}/auth/realms/master"
-      SIMPLESAMLPHP_SP_IDP_METADATA_URL: "https://keycloak.${EXTERNAL_DOMAIN:-external.test}/auth/realms/master/protocol/saml/descriptor"
+      SIMPLESAMLPHP_SP_IDP_ID: "https://sso.${EXTERNAL_DOMAIN:-external.test}/auth/realms/master"
+      SIMPLESAMLPHP_SP_IDP_METADATA_URL: "https://sso.${EXTERNAL_DOMAIN:-external.test}/auth/realms/master/protocol/saml/descriptor"
       SIMPLESAMLPHP_CA_FILE: "/etc/simplesamlphp/ca/rootCA.pem"
       MSMTP_HOST: "mail.${INTERNAL_DOMAIN:-internal.test}"
       MSMTP_FROM: "no-reply@limesurvey.${EXTERNAL_DOMAIN:-external.test}"
     depends_on:
       - mariadb-ls
     volumes:
-      - "./overlay/etc/entrypoint.d/20-limesurvey.sh:/etc/entrypoint.d/20-limesurvey.sh"
-      - "./overlay/etc/entrypoint.d/30-limesurvey-saml.sh:/etc/entrypoint.d/30-limesurvey-saml.sh"
-      - "./overlay/etc/server.d/20-limesurvey.sh:/etc/server.d/20-limesurvey.sh"
-      - "./overlay/etc/server.d/30-limesurvey-saml.sh:/etc/server.d/30-limesurvey-saml.sh"
-      - "./overlay/var/tmp/patches/limesurvey:/var/tmp/patches/limesurvey"
-      - "./traefik-data/ca:/etc/simplesamlphp/ca"
+      - /etc/localtime:/etc/localtime:ro
+      - limesurvey-config-php:/var/www/html/application/config/config.php
+      - limesurvey-security-php:/var/www/html/application/config/security.php
+      - limesurvey-plugins:/var/www/html/plugins
+      - limesurvey-uploads:/var/www/html/upload
+      - ./data/traefik/ca:/etc/simplesamlphp/ca
+    restart: unless-stopped
+    healthcheck:
+      test: "curl -sS http://localhost:8080 || exit 1"
+      interval: 60s
+      timeout: 20s
+      retries: 3
+    hostname: limesurvey.${INTERNAL_DOMAIN:-internal.test}
+    networks:
+      default:
+        aliases:
+          - limesurvey.${INTERNAL_DOMAIN:-internal.test}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.limesurvey.loadbalancer.server.port=80"
+      - "traefik.http.services.limesurvey.loadbalancer.server.port=8080"
       - "traefik.http.routers.limesurvey.rule=Host(`limesurvey.${EXTERNAL_DOMAIN:-external.test}`)"
       - "traefik.http.routers.limesurvey.entrypoints=websecure"
       - "traefik.http.routers.limesurvey.tls=true"
 
   mariadb-ls:
-    image: mariadb:10.4.13
+    image: mariadb:10.11.9
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - limesurvey-mariadb:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=limesurvey
       - MYSQL_USER=limesurvey
       - MYSQL_PASSWORD=password
-# https://github.com/docker-library/mariadb/issues/261
-# https://github.com/docker-library/mariadb/issues/262
-      - MYSQL_INITDB_SKIP_TZINFO=true
     hostname: mariadb-ls.${INTERNAL_DOMAIN:-internal.test}
     networks:
       default:
@@ -92,73 +101,9 @@ services:
       - "traefik.http.routers.ls-phpmyadmin.tls=true"
 
   traefik:
-    image: traefik:2.2.11
-    entrypoint:
-      - '/bin/sh'
-      - '-c'
-      - |
-        if [[ ! -e "$${CAROOT}/rootCA.pem" ]]; then
-          if [[ ! -d "$${CAROOT}" ]]; then
-            mkdir -p "$${CAROOT}";
-          fi;
-
-          # mkcert installation
-          wget -O /tmp/mkcert -q $${MKCERT_DOWNLOAD_URL};
-          echo "$${MKCERT_SHA256}  /tmp/mkcert" | sha256sum -c -w -s -;
-          mv /tmp/mkcert /usr/local/bin;
-          chmod +x /usr/local/bin/mkcert;
-
-          # generate ca
-          mkdir -p $${CAROOT};
-          mkcert --install;
-
-          echo "Development CA certificate, beware !";
-          cat $$(mkcert -CAROOT)/rootCA.pem;
-        fi;
-
-        if [[ ! -e "/etc/traefik/ssl/traefik-key.pem" ]]; then
-          if [[ ! -d "/etc/traefik/ssl" ]]; then
-            # generate "localhost certificate"
-            mkdir -p /etc/traefik/ssl;
-          fi;
-
-          mkcert -cert-file /etc/traefik/ssl/traefik.pem -key-file /etc/traefik/ssl/traefik-key.pem "localhost" "127.0.0.1" "::1";
-          cp /etc/traefik/ssl/traefik.pem /etc/traefik/ssl/traefik-fullchain.pem;
-          cat $$(mkcert -CAROOT)/rootCA.pem >> /etc/traefik/ssl/traefik-fullchain.pem;
-        fi;
-
-        mkdir -p /etc/traefik/conf/dynamic-config;
-        cat << EOF > /etc/traefik/conf/dynamic-config/file-provider.toml
-        [[tls.certificates]]
-          certFile = "/etc/traefik/ssl/traefik-fullchain.pem"
-          keyFile = "/etc/traefik/ssl/traefik-key.pem"
-          stores = ["default"]
-
-        [tls.stores]
-          [tls.stores.default]
-            [tls.stores.default.defaultCertificate]
-              certFile = "/etc/traefik/ssl/traefik-fullchain.pem"
-              keyFile  = "/etc/traefik/ssl/traefik-key.pem"
-
-        [tls.options]
-          [tls.options.default]
-            minVersion = "VersionTLS12"
-          [tls.options.myTLSOptions]
-            minVersion = "VersionTLS13"
-
-        [http.middlewares]
-          [http.middlewares.dashboardAuth.basicAuth]
-            # admin:password
-            users = [
-              "admin:\$$apr1\$$97xk9Kkr\$$gavbmzhrI6uOVYNOfYByQ/"
-            ]
-          [http.middlewares.redirect-to-https.redirectScheme]
-            scheme = "https"
-            permanent = true
-        EOF
-        exec /entrypoint.sh "$$@"
+    image: traefik:3.1.7
+    entrypoint: /etc/entrypoint/entrypoint.sh
     command:
-      - "--"
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.tls=true
@@ -175,14 +120,13 @@ services:
       - --log.level=INFO
       - --log.format=json
     environment:
-      - MKCERT_VERSION=${MKCERT_VERSION:-v1.4.1}
-      - MKCERT_DOWNLOAD_URL=https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION:-v1.4.1}/mkcert-${MKCERT_VERSION:-v1.4.1}-linux-amd64
-      - MKCERT_SHA256=${MKCERT_SHA256SUM:-e116543bfabb4d88010dda8a551a5d01abbdf9b4f2c949c044b862365038f632}
-      - CAROOT=/etc/traefik/ca
+      - CAROOT=${CAROOT:-/etc/traefik/ssl/ca}
+      - DNS_SERVERS=${DNS_SERVERS:-8.8.8.8 8.8.4.4}
     volumes:
-      - "./traefik-data/ca:/etc/traefik/ca"
-      - "./traefik-data/ssl:/etc/traefik/ssl"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik:/etc/entrypoint"
+      - traefik:/etc/traefik
+      - simva-dev:/simva
     ports:
       - "127.0.0.1:80:80"
       - "127.0.0.1:443:443"
@@ -190,12 +134,11 @@ services:
     networks:
       default:
         aliases:
-          - "traefik.${INTERNAL_DOMAIN:-internal.test}"
           - "traefik.${EXTERNAL_DOMAIN:-external.test}"
-          - "keycloak.${EXTERNAL_DOMAIN:-external.test}"
+          - "sso.${EXTERNAL_DOMAIN:-external.test}"
           - "limesurvey.${EXTERNAL_DOMAIN:-external.test}"
-          - "phpmyadmin.${EXTERNAL_DOMAIN:-external.test}"
           - "mail.${EXTERNAL_DOMAIN:-external.test}"
+          - "traefik.${INTERNAL_DOMAIN:-internal.test}"
     labels:
       - "traefik.enable=true"
       # Global redirect http to https
@@ -227,3 +170,75 @@ services:
       - "traefik.http.routers.mail.rule=Host(`mail.${EXTERNAL_DOMAIN:-external.test}`)"
       - "traefik.http.routers.mail.entrypoints=websecure"
       - "traefik.http.routers.mail.tls=true"
+
+  whoami:
+    image: traefik/whoami
+    hostname: whoami.${INTERNAL_DOMAIN:-internal.test}
+    networks:
+      default:
+        aliases:
+          - "whoami.${INTERNAL_DOMAIN:-internal.test}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.${EXTERNAL_DOMAIN:-external.test}`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
+
+  dns:
+    image: coredns/coredns:1.11.4
+    command: -conf /simva/coredns/Corefile
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - simva-dev:/simva
+    ports:
+      - "${DNS_BIND_IP:-127.1.1.1}:53:53/udp"
+    hostname: dns.${INTERNAL_DOMAIN:-internal.test}
+    networks:
+      default:
+        aliases:
+          - "dns.${INTERNAL_DOMAIN:-internal.test}"
+          
+volumes:
+  traefik:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/traefik
+  limesurvey-mariadb:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/limesurvey/mariadb
+  limesurvey-uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/limesurvey/uploads
+  limesurvey-plugins:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/limesurvey/plugins
+  limesurvey-config-php:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/limesurvey/config.php
+  limesurvey-security-php:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/limesurvey/security.php
+  simva-dev:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/simva

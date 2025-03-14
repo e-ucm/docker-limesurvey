@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -eo pipefail
+[[ "${DEBUG}" == "true" ]] && set -x
+
+if [[ -z "${ENTRYPOINT_INITIALIZED}" ]]; then
+  for file in $(find /etc/entrypoint/entrypoint.d -iname \*.sh | sort); do
+    source ${file}
+  done
+fi
+
+for file in $(find /etc/server/server.d -iname \*.sh | sort); do
+  source ${file}
+done
+
+exec apache2-foreground "$@"

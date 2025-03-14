@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -eo pipefail
+[[ "${DEBUG}" == "true" ]] && set -x
+
+if [[ -z "${ENTRYPOINT_INITIALIZED}" ]]; then
+  for file in $(find /etc/entrypoint/entrypoint.d -iname \*.sh | sort); do
+    source ${file}
+  done
+fi
+
+function show_saml2_sp_ids()
+{
+    php -r "require '${SIMPLESAMLPHP_CONF_DIR}/authsources.php'; echo implode(\"\n\", array_keys(\$config)); echo \"\n\";"
+}
+
+#
+# command line process
+#
+
+function usage () {
+  local command=$(basename $0)
+  echo 1>&2 "Usage: ${command} [<SP id>]"
+  echo 1>&2 "List all ids of the configured SAML2 SPs or show the <SP id> metadata."
+  echo 1>&2 "Options:"
+  echo 1>&2 "  -h, --help"
+  echo 1>&2 "      Shows this help message and exists."
+}
+
+LIST_LONG_OPTIONS=(
+  "help"
+)
+LIST_SHORT_OPTIONS=(
+  "h"
+)
+
+opts=$(getopt \
+    --longoptions "force,$(printf "%s," "${LIST_LONG_OPTIONS[@]}")" \
+    --options "f,$(printf "%s", "${LIST_SHORT_OPTIONS[@]}")" \
+    --name "$(basename "$0")" \
+    -- "$@"
+)
+
+eval set -- $opts
+
+# Sobreescribe el fichero de configuracion
+FUERZA=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --)
+      shift
+      break
+      ;;
+    *)
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+#
+# Main
+#
+
+if [[ $# -lt 1 ]]; then
+  show_saml2_sp_ids
+  exit 0
+fi
+
+
+# Identificador de la organizacion
+SP_ID=$1
+curl -s "http://localhost/${SIMPLESAMLPHP_PATH}/module.php/saml/sp/metadata.php/${SP_ID}"
+
+exit 0
