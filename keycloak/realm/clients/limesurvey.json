@@ -1,0 +1,61 @@
+{
+  "id": "11c9bde7-5875-4fc7-88b7-02425ed57543",
+  "clientId": "{{ .clients.limesurvey.clientId }}",
+  "name": "{{ .clients.limesurvey.clientId }}",
+  "description": "",
+  "rootUrl": "",
+  "adminUrl": "{{ .clients.limesurvey.baseUrl }}/admin",
+  "baseUrl" : "{{ .clients.limesurvey.baseUrl }}/admin",
+  "surrogateAuthRequired": false,
+  "enabled": true,
+  "alwaysDisplayInConsole": false,
+  "clientAuthenticatorType": "client-secret",
+  "secret": "{{ .clients.limesurvey.secret }}",
+  "redirectUris": [ 
+    "{{ .clients.limesurvey.baseUrl }}/*"
+  ],
+  "webOrigins": [ 
+    "{{ .clients.limesurvey.baseUrl }}" 
+  ],
+  "notBefore": 0,
+  "bearerOnly": false,
+  "consentRequired": false,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "publicClient": false,
+  "frontchannelLogout": false,
+  "protocol": "openid-connect",
+  "attributes": {
+    "realm_client": "false",
+    "oidc.ciba.grant.enabled": "false",
+    "client.secret.creation.time": "1732286504",
+    "backchannel.logout.session.required": "false",
+    "display.on.consent.screen": "false",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "backchannel.logout.revoke.offline.tokens": "false"
+  },
+  "authenticationFlowBindingOverrides": {},
+  "fullScopeAllowed": true,
+  "nodeReRegistrationTimeout": -1,
+  "defaultClientScopes": [
+    "web-origins",
+    "acr",
+    "roles",
+    "profile",
+    "basic",
+    "email"
+  ],
+  "optionalClientScopes": [
+    "address",
+    "phone",
+    "offline_access",
+    "microprofile-jwt"
+  ],
+  "access": {
+    "view": true,
+    "configure": true,
+    "manage": true
+  }
+}

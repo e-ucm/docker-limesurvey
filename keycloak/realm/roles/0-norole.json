@@ -1,0 +1,9 @@
+{
+    "id": "61d16051-1807-4d3a-ab11-c209e1ee398f",
+    "name": "norole",
+    "description": "",
+    "composite": false,
+    "clientRole": false,
+    "containerId": "master",
+    "attributes": {}
+}

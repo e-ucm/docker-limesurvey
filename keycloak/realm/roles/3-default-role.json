@@ -1,0 +1,16 @@
+{
+    "id": "928f344c-0a35-4ac9-87d5-d23a315d2935",
+    "name": "default-roles-master",
+    "description": "${role_default-roles}",
+    "composite": true,
+    "composites": {
+      "realm": [
+        "norole",
+        "offline_access",
+        "uma_authorization"
+      ]
+    },
+    "clientRole": false,
+    "containerId": "master",
+    "attributes": {}
+}

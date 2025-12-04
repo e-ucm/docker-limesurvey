@@ -1,0 +1,51 @@
+{
+  "id": "d3b1fc57-48b4-4938-b376-a3b767aab6d1",
+  "name": "roles",
+  "description": "OpenID Connect scope for add user roles to the access token",
+  "protocol": "openid-connect",
+  "attributes": {
+    "include.in.token.scope": "false",
+    "consent.screen.text": "${rolesScopeConsentText}",
+    "display.on.consent.screen": "true"
+  },
+  "protocolMappers": [
+    {
+      "id": "2a59ce91-6067-4251-9441-8995fe9f4e48",
+      "name": "realm roles",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-realm-role-mapper",
+      "consentRequired": false,
+      "config": {
+        "user.attribute": "foo",
+        "access.token.claim": "true",
+        "claim.name": "realm_access.roles",
+        "jsonType.label": "String",
+        "multivalued": "true",
+        "userinfo.token.claim": "true"
+      }
+    },
+    {
+      "id": "53355898-f2fb-4d8e-886d-8867635cb232",
+      "name": "audience resolve",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-resolve-mapper",
+      "consentRequired": false,
+      "config": {}
+    },
+    {
+      "id": "e44a75ec-8b78-4a50-8723-7dbf455fd5b0",
+      "name": "client roles",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-client-role-mapper",
+      "consentRequired": false,
+      "config": {
+        "user.attribute": "foo",
+        "access.token.claim": "true",
+        "claim.name": "resource_access.${client_id}.roles",
+        "jsonType.label": "String",
+        "multivalued": "true",
+        "userinfo.token.claim": "true"
+      }
+    }
+  ]
+}

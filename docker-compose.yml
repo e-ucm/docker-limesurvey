@@ -5,47 +5,28 @@ services:
   limesurvey:
     build:
       context: .
-    entrypoint: /bin/bash
-#    command: /bin/bash
+    entrypoint: ["/container-tools/wait-for-it.sh -h mariadb-ls.${INTERNAL_DOMAIN:-internal.test} -p 3306 -t 20"]
+    command: ["apache2-foreground"]
     stdin_open: true
     tty: true
     environment:
-      LIMESURVEY_DB_HOST: "mariadb-ls.${INTERNAL_DOMAIN:-internal.test}"
-      LIMESURVEY_DB_USER: "limesurvey"
-      LIMESURVEY_DB_PASSWORD: "password"
-      LIMESURVEY_ADMIN_USER: "admin"
-      LIMESURVEY_ADMIN_PASSWORD: "password2"
-      LIMESURVEY_ADMIN_NAME: Lime Administrator
-      LIMESURVEY_ADMIN_EMAIL: lime-dev@limesurvey.${EXTERNAL_DOMAIN:-external.test}
-      LIMESURVEY_SAML_PLUGIN_AUTH_SOURCE: "sp-test"
-      LIMESURVEY_SAML_PLUGIN_UID_MAPPING: "username"
-      DEBUG: "true"
-      SIMPLESAMLPHP_PATH: "/simplesamlphp"
-      SIMPLESAMLPHP_SESSION_COOKIE_PATH: "/"
-      SIMPLESAMLPHP_ADMIN_PASSWORD: "password"
-      SIMPLESAMLPHP_DEBUG_SAML: "true"
-      SIMPLESAMLPHP_LOG_LEVEL: "DEBUG"
-      SIMPLESAMLPHP_ADMIN_PROTECT_INDEX_PAGE: "true"
-      SIMPLESAMLPHP_ENABLE_DEFAULT_VHOST: "true"
-      SIMPLESAMLPHP_INTERNAL_PROXY_HOSTNAME: "traefik.${INTERNAL_DOMAIN:-internal.test}"
-      SIMPLESAMLPHP_SP_CERT_SUBJ: "/C=ES/ST=Madrid/L=Madrid/O=Universidad Complutense de Madrid/OU=e-UCM/CN=limesurvey.${INTERNAL_DOMAIN:-internal.test}"
-      SIMPLESAMLPHP_SP_NAME: "sp-test"
-      SIMPLESAMLPHP_SIGN_AUTHN_REQUESTS: "true"
-      SIMPLESAMLPHP_SIGN_LOGOUT_REQUESTS: "true"
-      SIMPLESAMLPHP_SIGN_REDIRECTS_REQUESTS: "true"
-      SIMPLESAMLPHP_ENCRYPTED_ASSERTIONS: "true"
-      SIMPLESAMLPHP_SP_IDP_ID: "https://keycloak.${EXTERNAL_DOMAIN:-external.test}/auth/realms/master"
-      SIMPLESAMLPHP_SP_IDP_METADATA_URL: "https://keycloak.${EXTERNAL_DOMAIN:-external.test}/auth/realms/master/protocol/saml/descriptor"
-      SIMPLESAMLPHP_CA_FILE: "/etc/simplesamlphp/ca/rootCA.pem"
-      MSMTP_HOST: "mail.${INTERNAL_DOMAIN:-internal.test}"
-      MSMTP_FROM: "no-reply@limesurvey.${EXTERNAL_DOMAIN:-external.test}"
+      DEBUG: true
+      SSO_HOST: ${KEYCLOAK_SERVER_HOST:-sso.external.test}
+      DB_HOST: mariadb-ls.${INTERNAL_DOMAIN:-internal.test}
+      DB_NAME: "limesurvey"
+      DB_USERNAME: "limesurvey"
+      DB_PASSWORD: "password"
+      ADMIN_USER: "admin"
+      ADMIN_NAME: "Lime Administrator"
+      ADMIN_EMAIL: lime-dev@limesurvey.${EXTERNAL_DOMAIN:-external.test}
+      ADMIN_PASSWORD: ${SIMVA_LIMESURVEY_ADMIN_PASSWORD:-secret}
+      PUBLIC_URL: "https://limesurvey.${EXTERNAL_DOMAIN:-external.test}:443"
+      BASE_URL: "https://limesurvey.${EXTERNAL_DOMAIN:-external.test}:443"
+      MSMTP_HOST: "mail.sso.${SIMVA_INTERNAL_DOMAIN:-internal.test}"
+      MSMTP_FROM: "no-reply@limesurvey.${SIMVA_EXTERNAL_DOMAIN:-external.test}"
     depends_on:
       - mariadb-ls
     volumes:
-      - "./overlay/etc/entrypoint.d/20-limesurvey.sh:/etc/entrypoint.d/20-limesurvey.sh"
-      - "./overlay/etc/entrypoint.d/30-limesurvey-saml.sh:/etc/entrypoint.d/30-limesurvey-saml.sh"
-      - "./overlay/etc/server.d/20-limesurvey.sh:/etc/server.d/20-limesurvey.sh"
-      - "./overlay/etc/server.d/30-limesurvey-saml.sh:/etc/server.d/30-limesurvey-saml.sh"
       - "./overlay/var/tmp/patches/limesurvey:/var/tmp/patches/limesurvey"
       - "./traefik-data/ca:/etc/simplesamlphp/ca"
     labels:
