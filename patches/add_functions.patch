@@ -1,0 +1,114 @@
+diff -u -r application/helpers/remotecontrol/remotecontrol_handle.php.orig application/helpers/remotecontrol/remotecontrol_handle.php
+--- application/helpers/remotecontrol/remotecontrol_handle.php.orig	2025-12-04 19:10:11.164719800 +0100
++++ application/helpers/remotecontrol/remotecontrol_handle.php	2025-12-04 19:14:06.482756000 +0100
+@@ -26,6 +26,110 @@
+         $this->controller = $controller;
+     }
+ 
++    /**
++    * RPC method: update_plugin_settings
++    *
++    * @access public
++    * @param string $sSessionKey
++    * @param string $sPluginName
++    * @param int    $iSurveyId      Use 0 for global settings
++    * @param array  $aSettings      key→value pairs
++    * @return array                ['status'=>'OK'] or throws CHttpException(400, …)
++    */
++    public function update_plugin_settings($sSessionKey, $sPluginName, $iSurveyId, $aSettings)
++    {
++        error_log("Plugin Name :". $sPluginName . "| SurveyId :" . $iSurveyId . " | Plugin Settings :" . json_encode($aSettings));
++        // 1) Validate session & permissions
++        if (!$this->_checkSessionKey($sSessionKey)) {
++            return array('status' => 'Invalid session key');
++        }
++
++        // 2) Grab the plugin via the app component
++        /** @var PluginManager $pm */
++        $pm      = Yii::app()->pluginManager;
++        $methods = get_class_methods($pm);
++        error_log(json_encode($methods));
++        $plugin = $pm->loadPlugin($sPluginName);
++        
++        try {
++            if ($plugin === null) {
++                // Log or display an error message with the plugin name
++                error_log("Plugin '$sPluginName' not found or not loaded correctly.");
++                // or
++                throw new CHttpException(500, "Plugin '$sPluginName' not found or not loaded correctly.");
++            } else {
++                $methods = get_class_methods($plugin);
++                error_log(json_encode($methods));
++                if ($iSurveyId) { 
++                    if (!in_array('setSurveySettings', $methods)) {
++                        // $plugin hasn't setSurveySettings method
++                        throw new CHttpException(500, "Function setSurveySettings not exists for plugin: ".$e->getMessage());
++                    }
++                    // 3) Persist your settings
++                    // survey‐specific settings
++                    $plugin->setSurveySettings($iSurveyId, $aSettings);
++                } else {
++                    if (!in_array('setGlobalSettings', $methods)) {
++                        // $plugin hasn't setGlobalSettings method
++                        if (!$iSurveyId) { 
++                            throw new CHttpException(500, "Function setGlobalSettings not exists for plugin: ".$e->getMessage());
++                        }
++                    }
++                    // 3) Persist your settings
++                    // global settings
++                    $plugin->setGlobalSettings($aSettings);
++                }
++            }
++        } catch (Exception $e) {
++            throw new CHttpException(500, "Could not save plugin settings: ".$e->getMessage());
++        }
++
++        // 4) Return success
++        return ['status'=>'OK'];
++    }
++
++    /**
++    * RPC Routine to export a survey structure (LSS).
++    *
++    * @access public
++    * @param string $sSessionKey Auth credentials
++    * @param int $iSurveyID_org Id of the survey
++    * @return string|array in case of success : Base64 encoded string of the .lss file. On failure array with error information.
++    */
++    public function export_survey_structure ($sSessionKey, $iSurveyID_org)
++    {
++        $iSurveyID = (int) $iSurveyID_org;
++        if (!$this->_checkSessionKey($sSessionKey)) {
++            return array('status' => 'Invalid session key');
++        }
++        $aData['bFailed'] = false; // Put a var for continue
++        if (!$iSurveyID) {
++            $aData['sErrorMessage'] = "No survey ID has been provided. Cannot export survey";
++            $aData['bFailed'] = true;
++        } elseif (!Survey::model()->findByPk($iSurveyID)) {
++            $aData['sErrorMessage'] = "Invalid survey ID";
++            $aData['bFailed'] = true;
++        } elseif (!Permission::model()->hasSurveyPermission($iSurveyID, 'surveycontent', 'export') && !Permission::model()->hasSurveyPermission($iSurveyID, 'surveycontent', 'export')) {
++            $aData['sErrorMessage'] = "You don't have sufficient permissions.";
++            $aData['bFailed'] = true;
++        } else {
++            $aExcludes = array();
++            $aExcludes['dates'] = true;
++            $btranslinksfields = true;
++            Yii::app()->loadHelper('export');
++            $exportsurveystructuredata = surveyGetXMLData($iSurveyID, $aExcludes);
++            if ($exportsurveystructuredata) {
++                $sResult = $exportsurveystructuredata;
++            } else {
++                $aData['bFailed'] = true;
++            }
++        }
++        if ($aData['bFailed']) {
++            return array('status' => 'Export failed', 'error'=> $aData['sErrorMessage']);
++        } else {
++            return base64_encode($sResult);
++        }
++    }
+ 
+     /**
+      * Create and return a session key.
