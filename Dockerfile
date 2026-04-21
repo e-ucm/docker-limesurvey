@@ -1,4 +1,4 @@
-FROM martialblog/limesurvey:6-apache
+FROM martialblog/limesurvey:6.13.2-250506-apache
 
 COPY patches /patches
 
