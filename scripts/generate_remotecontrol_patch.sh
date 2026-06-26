@@ -126,6 +126,108 @@ read -r -d '' INSERT_BLOCK <<'EOF' || true
         return base64_encode($sResult);
     }
 
+    /**
+     * Export images resources as *.zip
+     *
+     * @access public
+     * @param string $sSessionKey Auth credentials
+     * @param int $iSurveyID ID of the Survey
+     * @return string|array in case of success : Base64 encoded string of the images zip file. On failure array with error information.
+     */
+    public function export_images($sSessionKey, $iSurveyID)
+    {
+        $iSurveyID = (int) $iSurveyID;
+        if (!$this->_checkSessionKey($sSessionKey)) {
+            return array('status' => self::INVALID_SESSION_KEY);
+        }
+
+        if (!Permission::model()->hasSurveyPermission($iSurveyID, 'surveycontent', 'export')) {
+            return array('status' => 'No permission');
+        }
+
+        $oSurvey = Survey::model()->findByPk($iSurveyID);
+        if (!isset($oSurvey)) {
+            return array('status' => 'Error: Invalid survey ID');
+        }
+
+        $sUploadDir = Yii::app()->getConfig('upload_dir') . DIRECTORY_SEPARATOR . 'surveys' . DIRECTORY_SEPARATOR . $iSurveyID . DIRECTORY_SEPARATOR . 'files';
+        if (!is_dir($sUploadDir)) {
+            return array('status' => 'Error: No images found');
+        }
+
+        $sZipFile = Yii::app()->getConfig('tempdir') . DIRECTORY_SEPARATOR . 'images_' . $iSurveyID . '.zip';
+        $zip = new ZipArchive();
+        if ($zip->open($sZipFile, ZipArchive::CREATE) !== TRUE) {
+            return array('status' => 'Error: Could not create zip file');
+        }
+
+        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($sUploadDir), RecursiveIteratorIterator::LEAVES_ONLY);
+        foreach ($files as $name => $file) {
+            if (!$file->isDir()) {
+                $filePath = $file->getRealPath();
+                $relativePath = substr($filePath, strlen($sUploadDir) + 1);
+                $zip->addFile($filePath, $relativePath);
+            }
+        }
+
+        $zip->close();
+
+        if (!file_exists($sZipFile)) {
+            return array('status' => 'Error: Could not create zip file');
+        }
+
+        $sResult = file_get_contents($sZipFile);
+        unlink($sZipFile);
+
+        return base64_encode($sResult);
+    }
+
+    /**
+     * Import images resources from *.zip
+     *
+     * @access public
+     * @param string $sSessionKey Auth credentials
+     * @param int $iSurveyID ID of the Survey
+     * @param string $sImportData Base64 encoded string of the images zip file
+     * @return array Status=>OK when successful, otherwise the error description
+     */
+    public function import_images($sSessionKey, $iSurveyID, $sImportData)
+    {
+        $iSurveyID = (int) $iSurveyID;
+        if (!$this->_checkSessionKey($sSessionKey)) {
+            return array('status' => self::INVALID_SESSION_KEY);
+        }
+
+        if (!Permission::model()->hasSurveyPermission($iSurveyID, 'surveycontent', 'import')) {
+            return array('status' => 'No permission');
+        }
+
+        $oSurvey = Survey::model()->findByPk($iSurveyID);
+        if (!isset($oSurvey)) {
+            return array('status' => 'Error: Invalid survey ID');
+        }
+
+        $sUploadDir = Yii::app()->getConfig('upload_dir') . DIRECTORY_SEPARATOR . 'surveys' . DIRECTORY_SEPARATOR . $iSurveyID . DIRECTORY_SEPARATOR . 'files';
+        if (!is_dir($sUploadDir)) {
+            mkdir($sUploadDir, 0777, true);
+        }
+
+        $sZipFile = Yii::app()->getConfig('tempdir') . DIRECTORY_SEPARATOR . 'images_' . $iSurveyID . '.zip';
+        file_put_contents($sZipFile, base64_decode($sImportData));
+
+        $zip = new ZipArchive();
+        if ($zip->open($sZipFile) !== TRUE) {
+            return array('status' => 'Error: Could not open zip file');
+        }
+
+        $zip->extractTo($sUploadDir);
+        $zip->close();
+
+        unlink($sZipFile);
+
+        return array('status' => 'OK');
+    }
+
 EOF
 
 printf '%s\n\n' "$INSERT_BLOCK" > "$WORK_DIR/insert_block.php"
@@ -147,6 +249,9 @@ if cmp -s "$WORK_DIR/original.php" "$WORK_DIR/modified.php"; then
   : > "$OUTPUT_PATCH"
   exit 1
 fi
+
+# Remove the extra line added by the patch
+sed -i '/^@@ -[0-9]*,[0-9]* +[0-9]*,[0-9]* @@/d' "$OUTPUT_PATCH"
 
 diff -u \
   --label "${TARGET_REL}.orig" \
